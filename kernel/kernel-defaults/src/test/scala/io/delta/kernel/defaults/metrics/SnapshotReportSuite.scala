@@ -78,6 +78,10 @@ class SnapshotReportSuite extends AnyFunSuite with MetricsReportTestUtils {
    *                                                     loadInitialDeltaActionsDurationNs to be
    *                                                     non-zero (should be true except when an
    *                                                     exception is thrown before log replay)
+   * @param expectNonZeroLoadDomainMetadataDuration whether we expect
+   *                                                loadDomainMetadataDurationNs to be
+   *                                                non-zero (should be true except when an
+   *                                                exception is thrown before log replay)
    */
   def checkSnapshotReport(
       f: (Table, Engine) => Snapshot,
@@ -86,7 +90,8 @@ class SnapshotReportSuite extends AnyFunSuite with MetricsReportTestUtils {
       expectedVersion: Optional[Long],
       expectedProvidedTimestamp: Optional[Long],
       expectNonEmptyTimestampToVersionResolutionDuration: Boolean,
-      expectNonZeroLoadProtocolAndMetadataDuration: Boolean): Unit = {
+      expectNonZeroLoadProtocolAndMetadataDuration: Boolean,
+      expectNonZeroLoadDomainMetadataDuration: Boolean): Unit = {
 
     val (snapshotReport, duration, exception) = getSnapshotReport(f, path, expectException)
 
@@ -121,6 +126,12 @@ class SnapshotReportSuite extends AnyFunSuite with MetricsReportTestUtils {
     } else {
       assert(snapshotReport.getSnapshotMetrics.getLoadInitialDeltaActionsDurationNs == 0)
     }
+    if (expectNonZeroLoadDomainMetadataDuration) {
+      assert(snapshotReport.getSnapshotMetrics.getLoadDomainMetadataDurationNs > 0)
+      assert(snapshotReport.getSnapshotMetrics.getLoadDomainMetadataDurationNs < duration)
+    } else {
+      assert(snapshotReport.getSnapshotMetrics.getLoadDomainMetadataDurationNs == 0)
+    }
   }
 
   test("SnapshotReport valid queries") {
@@ -143,7 +154,8 @@ class SnapshotReportSuite extends AnyFunSuite with MetricsReportTestUtils {
         expectedVersion = Optional.of(1),
         expectedProvidedTimestamp = Optional.empty(), // No time travel by timestamp
         expectNonEmptyTimestampToVersionResolutionDuration = false, // No time travel by timestamp
-        expectNonZeroLoadProtocolAndMetadataDuration = true)
+        expectNonZeroLoadProtocolAndMetadataDuration = true,
+        expectNonZeroLoadDomainMetadataDuration = true)
 
       // Test getSnapshotAsOfVersion
       checkSnapshotReport(
@@ -153,7 +165,8 @@ class SnapshotReportSuite extends AnyFunSuite with MetricsReportTestUtils {
         expectedVersion = Optional.of(0),
         expectedProvidedTimestamp = Optional.empty(), // No time travel by timestamp
         expectNonEmptyTimestampToVersionResolutionDuration = false, // No time travel by timestamp
-        expectNonZeroLoadProtocolAndMetadataDuration = true)
+        expectNonZeroLoadProtocolAndMetadataDuration = true,
+        expectNonZeroLoadDomainMetadataDuration = true)
 
       // Test getSnapshotAsOfTimestamp
       checkSnapshotReport(
@@ -163,7 +176,8 @@ class SnapshotReportSuite extends AnyFunSuite with MetricsReportTestUtils {
         expectedVersion = Optional.of(0),
         expectedProvidedTimestamp = Optional.of(version0timestamp),
         expectNonEmptyTimestampToVersionResolutionDuration = true,
-        expectNonZeroLoadProtocolAndMetadataDuration = true)
+        expectNonZeroLoadProtocolAndMetadataDuration = true,
+        expectNonZeroLoadDomainMetadataDuration = true)
     }
   }
 
@@ -183,7 +197,8 @@ class SnapshotReportSuite extends AnyFunSuite with MetricsReportTestUtils {
         expectedVersion = Optional.of(1),
         expectedProvidedTimestamp = Optional.empty(), // No time travel by timestamp
         expectNonEmptyTimestampToVersionResolutionDuration = false, // No time travel by timestamp
-        expectNonZeroLoadProtocolAndMetadataDuration = false)
+        expectNonZeroLoadProtocolAndMetadataDuration = false,
+        expectNonZeroLoadDomainMetadataDuration = false)
 
       // Test getSnapshotAsOfTimestamp with timestamp=0 (does not exist)
       // This fails during timestamp -> version resolution
@@ -194,7 +209,8 @@ class SnapshotReportSuite extends AnyFunSuite with MetricsReportTestUtils {
         expectedVersion = Optional.empty(),
         expectedProvidedTimestamp = Optional.of(0),
         expectNonEmptyTimestampToVersionResolutionDuration = true,
-        expectNonZeroLoadProtocolAndMetadataDuration = false)
+        expectNonZeroLoadProtocolAndMetadataDuration = false,
+        expectNonZeroLoadDomainMetadataDuration = false)
 
       // Test getSnapshotAsOfTimestamp with timestamp=currentTime (does not exist)
       // This fails during timestamp -> version resolution
@@ -206,7 +222,8 @@ class SnapshotReportSuite extends AnyFunSuite with MetricsReportTestUtils {
         expectedVersion = Optional.empty(),
         expectedProvidedTimestamp = Optional.of(currentTimeMillis),
         expectNonEmptyTimestampToVersionResolutionDuration = true,
-        expectNonZeroLoadProtocolAndMetadataDuration = false)
+        expectNonZeroLoadProtocolAndMetadataDuration = false,
+        expectNonZeroLoadDomainMetadataDuration = false)
     }
   }
 
@@ -223,7 +240,8 @@ class SnapshotReportSuite extends AnyFunSuite with MetricsReportTestUtils {
         expectedVersion = Optional.empty(),
         expectedProvidedTimestamp = Optional.empty(), // No time travel by timestamp
         expectNonEmptyTimestampToVersionResolutionDuration = false, // No time travel by timestamp
-        expectNonZeroLoadProtocolAndMetadataDuration = false)
+        expectNonZeroLoadProtocolAndMetadataDuration = false,
+        expectNonZeroLoadDomainMetadataDuration = false)
 
       // Test getSnapshotAsOfVersion
       checkSnapshotReport(
@@ -233,7 +251,8 @@ class SnapshotReportSuite extends AnyFunSuite with MetricsReportTestUtils {
         expectedVersion = Optional.of(0),
         expectedProvidedTimestamp = Optional.empty(), // No time travel by timestamp
         expectNonEmptyTimestampToVersionResolutionDuration = false, // No time travel by timestamp
-        expectNonZeroLoadProtocolAndMetadataDuration = false)
+        expectNonZeroLoadProtocolAndMetadataDuration = false,
+        expectNonZeroLoadDomainMetadataDuration = false)
 
       // Test getSnapshotAsOfTimestamp
       checkSnapshotReport(
@@ -243,7 +262,8 @@ class SnapshotReportSuite extends AnyFunSuite with MetricsReportTestUtils {
         expectedVersion = Optional.empty(),
         expectedProvidedTimestamp = Optional.of(1000),
         expectNonEmptyTimestampToVersionResolutionDuration = true,
-        expectNonZeroLoadProtocolAndMetadataDuration = false)
+        expectNonZeroLoadProtocolAndMetadataDuration = false,
+        expectNonZeroLoadDomainMetadataDuration = false)
     }
   }
 
@@ -265,7 +285,8 @@ class SnapshotReportSuite extends AnyFunSuite with MetricsReportTestUtils {
         expectedVersion = Optional.empty(),
         expectedProvidedTimestamp = Optional.empty(), // No time travel by timestamp
         expectNonEmptyTimestampToVersionResolutionDuration = false, // No time travel by timestamp
-        expectNonZeroLoadProtocolAndMetadataDuration = false)
+        expectNonZeroLoadProtocolAndMetadataDuration = false,
+        expectNonZeroLoadDomainMetadataDuration = false)
 
       // Test getSnapshotAsOfVersion
       checkSnapshotReport(
@@ -275,7 +296,8 @@ class SnapshotReportSuite extends AnyFunSuite with MetricsReportTestUtils {
         expectedVersion = Optional.of(2),
         expectedProvidedTimestamp = Optional.empty(), // No time travel by timestamp
         expectNonEmptyTimestampToVersionResolutionDuration = false, // No time travel by timestamp
-        expectNonZeroLoadProtocolAndMetadataDuration = false)
+        expectNonZeroLoadProtocolAndMetadataDuration = false,
+        expectNonZeroLoadDomainMetadataDuration = false)
 
       // Test getSnapshotAsOfTimestamp
       val version2Timestamp = new File(
@@ -287,7 +309,8 @@ class SnapshotReportSuite extends AnyFunSuite with MetricsReportTestUtils {
         expectedVersion = Optional.of(2),
         expectedProvidedTimestamp = Optional.of(version2Timestamp),
         expectNonEmptyTimestampToVersionResolutionDuration = true,
-        expectNonZeroLoadProtocolAndMetadataDuration = false)
+        expectNonZeroLoadProtocolAndMetadataDuration = false,
+        expectNonZeroLoadDomainMetadataDuration = false)
     }
   }
 
@@ -303,7 +326,8 @@ class SnapshotReportSuite extends AnyFunSuite with MetricsReportTestUtils {
       expectedVersion = Optional.of(0),
       expectedProvidedTimestamp = Optional.empty(), // No time travel by timestamp
       expectNonEmptyTimestampToVersionResolutionDuration = false, // No time travel by timestamp
-      expectNonZeroLoadProtocolAndMetadataDuration = true)
+      expectNonZeroLoadProtocolAndMetadataDuration = true,
+      expectNonZeroLoadDomainMetadataDuration = true)
 
     // Test getSnapshotAsOfVersion
     checkSnapshotReport(
@@ -313,7 +337,8 @@ class SnapshotReportSuite extends AnyFunSuite with MetricsReportTestUtils {
       expectedVersion = Optional.of(0),
       expectedProvidedTimestamp = Optional.empty(), // No time travel by timestamp
       expectNonEmptyTimestampToVersionResolutionDuration = false, // No time travel by timestamp
-      expectNonZeroLoadProtocolAndMetadataDuration = true)
+      expectNonZeroLoadProtocolAndMetadataDuration = true,
+      expectNonZeroLoadDomainMetadataDuration = true)
 
     // Test getSnapshotAsOfTimestamp
     // We use the timestamp of version 0
@@ -326,6 +351,7 @@ class SnapshotReportSuite extends AnyFunSuite with MetricsReportTestUtils {
       expectedVersion = Optional.of(0),
       expectedProvidedTimestamp = Optional.of(version0Timestamp),
       expectNonEmptyTimestampToVersionResolutionDuration = true,
-      expectNonZeroLoadProtocolAndMetadataDuration = true)
+      expectNonZeroLoadProtocolAndMetadataDuration = true,
+      expectNonZeroLoadDomainMetadataDuration = true)
   }
 }
